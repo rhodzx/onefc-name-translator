@@ -7,8 +7,8 @@ import pandas as pd
 
 st.set_page_config(page_title="ONE FC Name Translator", page_icon="🥋")
 
-st.title("🥋 ONE FC Athlete Name Translator")
-url = st.text_input("Paste the ONE FC athlete URL:", "https://www.onefc.com/athletes/denice-zamboanga/")
+st.title("🥋 ONE Athlete Name Translator")
+url = st.text_input("Paste the ONE athlete URL:", "https://www.onefc.com/athletes/rodtang/")
 
 def fetch_name(url):
     try:
