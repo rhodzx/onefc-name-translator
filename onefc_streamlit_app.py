@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import pandas as pd
-import re
 
 st.set_page_config(page_title="ONE FC Name Translator", page_icon="🥋")
 
@@ -22,19 +21,19 @@ def fetch_name_and_country(url):
         h1 = soup.find('h1') or soup.find('h1', {'class': 'use-letter-spacing-hint my-4'})
         name = h1.get_text(strip=True) if h1 else "Name not found"
 
-        # Static text scan for country match
+        # Country detection based on first appearance in HTML
         known_countries = [
             "Thailand", "Philippines", "Japan", "China", "United States", "United Kingdom", "Brazil", "Russia",
             "India", "Australia", "Singapore", "Malaysia", "Vietnam", "South Korea", "Indonesia", "Myanmar"
         ]
-        all_text = soup.get_text(separator=' ').strip()
+        full_text = soup.get_text(separator=' ').strip()
 
-        country = "Not found"
-        for country_name in known_countries:
-            pattern = r"\b" + re.escape(country_name) + r"\b"
-            if re.search(pattern, all_text):
-                country = country_name
-                break
+        matches = {
+            country: full_text.index(country)
+            for country in known_countries
+            if country in full_text
+        }
+        country = min(matches, key=matches.get) if matches else "Not found"
 
         return name, country
     except Exception as e:
