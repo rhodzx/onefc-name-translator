@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import pandas as pd
+import difflib
 
 st.set_page_config(page_title="ONE FC Name + Auto Country", page_icon="🌍")
 st.title("🌍 ONE Athlete Name Translator + Auto Country")
@@ -36,6 +37,10 @@ def fetch_name(url):
     except Exception as e:
         return f"Error: {e}"
 
+def fuzzy_lookup(name, directory):
+    matches = difflib.get_close_matches(name, directory.keys(), n=1, cutoff=0.6)
+    return directory[matches[0]] if matches else "Not found"
+
 if "/athletes/" in url:
     parsed = urlparse(url)
     slug = parsed.path.strip('/').split('/')[-1]
@@ -50,7 +55,7 @@ if "/athletes/" in url:
     with st.spinner("Fetching name translations..."):
         directory = fetch_directory()
         en_name = fetch_name(langs["English"])
-        country = directory.get(en_name, "Not found")
+        country = fuzzy_lookup(en_name, directory)
 
         results = {
             "English": en_name,
@@ -64,4 +69,4 @@ if "/athletes/" in url:
     st.dataframe(df)
 
     csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country_auto.csv", mime="text/csv")
+    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country_fuzzy.csv", mime="text/csv")
