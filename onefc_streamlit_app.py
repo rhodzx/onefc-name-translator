@@ -20,13 +20,13 @@ def fetch_name_and_country(url):
         h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
         name = h1.get_text(strip=True) if h1 else "Name not found"
 
-        # Try to find 'COUNTRY' text block and its next sibling tag
+        # Robust COUNTRY extraction
         country = "Not found"
         for tag in soup.find_all(["div", "p", "span"]):
-            if tag and tag.get_text(strip=True).upper() == "COUNTRY":
-                next_sibling = tag.find_next_sibling()
-                if next_sibling and next_sibling.get_text(strip=True):
-                    country = next_sibling.get_text(strip=True)
+            if tag and tag.get_text(strip=True).strip().lower() == "country":
+                next_tag = tag.find_next_sibling()
+                if next_tag and next_tag.get_text(strip=True):
+                    country = next_tag.get_text(strip=True)
                     break
 
         return name, country
@@ -63,7 +63,6 @@ if "/athletes/" in url:
             "Chinese": fetch_name_only(langs["Chinese"]),
         }
 
-    st.success("Fetched successfully!")
     st.markdown(f"**🌍 Country:** `{country}`")
     df = pd.DataFrame(results.items(), columns=["Language", "Name"])
     st.dataframe(df)
