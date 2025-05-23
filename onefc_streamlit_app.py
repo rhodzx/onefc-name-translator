@@ -50,3 +50,6 @@ if "/athletes/" in url:
     st.markdown(f"**🌍 Country:** `{country}`")
     df = pd.DataFrame(results.items(), columns=["Language", "Name"])
     st.dataframe(df)
+
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country.csv", mime="text/csv")
