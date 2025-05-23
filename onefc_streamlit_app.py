@@ -21,21 +21,13 @@ def fetch_name_and_country(url):
         h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
         name = h1.get_text(strip=True) if h1 else "Name not found"
 
-        # Known countries list
-        known_countries = [
-            "Thailand", "Philippines", "Japan", "China", "United States", "United Kingdom", "Brazil", "Russia",
-            "India", "Australia", "Singapore", "Malaysia", "Vietnam", "South Korea", "Indonesia", "Myanmar"
-        ]
-
-        # Try to extract country from scoped content
+        # Final fix: Find div where text is "COUNTRY" and then the next sibling with value
         country = "Not found"
-        content_section = soup.find("div", class_="fighter-profile__content") or soup.find("div", class_="content-wrapper")
-        if content_section:
-            for tag in content_section.find_all(["div", "span", "p"]):
-                text = tag.get_text(strip=True)
-                if text in known_countries:
-                    country = text
-                    break
+        for label in soup.find_all("div", string=lambda text: text and text.strip().upper() == "COUNTRY"):
+            value_div = label.find_next_sibling("div")
+            if value_div and value_div.get_text(strip=True):
+                country = value_div.get_text(strip=True)
+                break
 
         return name, country
     except Exception as e:
