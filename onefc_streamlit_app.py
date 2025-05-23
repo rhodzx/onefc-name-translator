@@ -5,22 +5,25 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import pandas as pd
 
-st.set_page_config(page_title="ONE FC Name + Country", page_icon="🌍")
-st.title("🌍 ONE Athlete Name Translator + Country (Mapped)")
+st.set_page_config(page_title="ONE FC Name + Auto Country", page_icon="🌍")
+st.title("🌍 ONE Athlete Name Translator + Auto Country")
 
 url = st.text_input("Paste the ONE athlete URL:", "https://www.onefc.com/athletes/rodtang/")
 
-# Slug-to-country mapping (manually maintained)
-country_map = {
-    "rodtang": "Thailand",
-    "jonathan-haggerty": "United Kingdom",
-    "stamp-fairtex": "Thailand",
-    "alaverdi-ramazanov": "Russia",
-    "liam-harrison": "United Kingdom",
-    "superlek-kiatmoo9": "Thailand",
-    "jackie-buntan": "United States"
-    # Add more as needed
-}
+@st.cache_data(ttl=86400)
+def fetch_directory():
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    page = requests.get("https://www.onefc.com/athletes/", headers=headers, timeout=15)
+    soup = BeautifulSoup(page.content, "html.parser")
+
+    directory = {}
+    cards = soup.select("div.athlete-card")
+    for card in cards:
+        name = card.select_one("div.athlete-card__name")
+        country = card.select_one("div.athlete-card__country")
+        if name and country:
+            directory[name.get_text(strip=True)] = country.get_text(strip=True)
+    return directory
 
 def fetch_name(url):
     try:
@@ -44,13 +47,21 @@ if "/athletes/" in url:
         "Chinese": f"https://www.onefc.com/cn/athletes/{slug}/"
     }
 
-    with st.spinner("Fetching names..."):
-        results = {lang: fetch_name(link) for lang, link in langs.items()}
-        country = country_map.get(slug.lower(), "Not found")
+    with st.spinner("Fetching name translations..."):
+        directory = fetch_directory()
+        en_name = fetch_name(langs["English"])
+        country = directory.get(en_name, "Not found")
+
+        results = {
+            "English": en_name,
+            "Thai": fetch_name(langs["Thai"]),
+            "Japanese": fetch_name(langs["Japanese"]),
+            "Chinese": fetch_name(langs["Chinese"]),
+        }
 
     st.markdown(f"**🌍 Country:** `{country}`")
     df = pd.DataFrame(results.items(), columns=["Language", "Name"])
     st.dataframe(df)
 
     csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country_mapped.csv", mime="text/csv")
+    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country_auto.csv", mime="text/csv")
