@@ -4,21 +4,29 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import pandas as pd
 
-st.set_page_config(page_title="ONE Name Translator", page_icon="🥋")
+st.set_page_config(page_title="ONE FC Name Translator + Country", page_icon="🥋")
+st.title("🥋 ONE FC Athlete Name Translator + Country")
 
-st.title("🥋 ONE Athlete Name Translator")
-url = st.text_input("Paste the ONE athlete URL:", "https://www.onefc.com/athletes/rodtang/")
+url = st.text_input("Paste the ONE FC athlete URL:", "https://www.onefc.com/athletes/rodtang/")
 
-def fetch_name(url):
+def fetch_name_and_country(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         r = requests.get(url, headers=headers, timeout=10)
         r.raise_for_status()
         soup = BeautifulSoup(r.content, 'html.parser')
+
+        # Extract name
         h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
-        return h1.get_text(strip=True) if h1 else "Name not found"
+        name = h1.get_text(strip=True) if h1 else "Name not found"
+
+        # Extract country
+        country_label = soup.find('h6', string="COUNTRY")
+        country = country_label.find_next_sibling("div").get_text(strip=True) if country_label else "Not found"
+
+        return name, country
     except Exception as e:
-        return f"Error: {e}"
+        return f"Error: {e}", "Not found"
 
 if "/athletes/" in url:
     parsed = urlparse(url)
@@ -30,10 +38,15 @@ if "/athletes/" in url:
         "Chinese": f"https://www.onefc.com/cn/athletes/{slug}/"
     }
 
-    with st.spinner("Fetching names..."):
-        results = {lang: fetch_name(link) for lang, link in langs.items()}
+    with st.spinner("Fetching names and country..."):
+        results = {}
+        country = "Not found"
+        for lang, link in langs.items():
+            name, extracted_country = fetch_name_and_country(link)
+            results[lang] = name
+            if lang == "English":
+                country = extracted_country
+
+    st.markdown(f"**🌍 Country:** `{country}`")
     df = pd.DataFrame(results.items(), columns=["Language", "Name"])
     st.dataframe(df)
-
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names.csv", mime="text/csv")
