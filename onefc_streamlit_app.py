@@ -1,55 +1,49 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 import pandas as pd
+import time
 
-st.set_page_config(page_title="ONE FC Name Translator + Country", page_icon="🥋")
-st.title("🥋 ONE FC Athlete Name Translator + Country")
+def get_athlete_data(url):
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.get(url)
+    time.sleep(2)  # wait for content to load
 
-url = st.text_input("Paste the ONE FC athlete URL:", "https://www.onefc.com/athletes/rodtang/")
-
-def fetch_name_and_country(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.content, 'html.parser')
+        name = driver.find_element(By.TAG_NAME, "h1").text
+    except:
+        name = "Name not found"
 
-        # Extract name
-        h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
-        name = h1.get_text(strip=True) if h1 else "Name not found"
+    try:
+        country_element = driver.find_element(By.XPATH, "//h6[text()='COUNTRY']/following-sibling::div")
+        country = country_element.text
+    except:
+        country = "Country not found"
 
-        # Extract country
-        country_label = soup.find('h6', string="COUNTRY")
-        country = country_label.find_next_sibling("div").get_text(strip=True) if country_label else "Not found"
+    driver.quit()
+    return name, country
 
-        return name, country
-    except Exception as e:
-        return f"Error: {e}", "Not found"
+st.set_page_config(page_title="ONE FC Scraper (Selenium)", page_icon="🌟")
+st.title("ONE FC Athlete Info Scraper (Selenium)")
 
-if "/athletes/" in url:
-    parsed = urlparse(url)
-    slug = parsed.path.strip('/').split('/')[-1]
-    langs = {
-        "English": f"https://www.onefc.com/athletes/{slug}/",
-        "Thai": f"https://www.onefc.com/th/athletes/{slug}/",
-        "Japanese": f"https://www.onefc.com/jp/athletes/{slug}/",
-        "Chinese": f"https://www.onefc.com/cn/athletes/{slug}/"
-    }
+url = st.text_input("Paste the ONE athlete profile URL:", "https://www.onefc.com/athletes/rodtang/")
 
-    with st.spinner("Fetching names and country..."):
-        results = {}
-        country = "Not found"
-        for lang, link in langs.items():
-            name, extracted_country = fetch_name_and_country(link)
-            results[lang] = name
-            if lang == "English":
-                country = extracted_country
+if st.button("Fetch Info"):
+    with st.spinner("Scraping the site..."):
+        name, country = get_athlete_data(url)
 
-    st.markdown(f"**🌍 Country:** `{country}`")
-    df = pd.DataFrame(results.items(), columns=["Language", "Name"])
-    st.dataframe(df)
+    st.markdown(f"**Athlete Name:** {name}")
+    st.markdown(f"**Country:** {country}")
 
+    df = pd.DataFrame([[name, country]], columns=["Name", "Country"])
     csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country.csv", mime="text/csv")
+    st.download_button("📅 Download CSV", data=csv, file_name="athlete_info.csv", mime="text/csv")
