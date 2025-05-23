@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import pandas as pd
+import re
 
 st.set_page_config(page_title="ONE FC Name Translator", page_icon="🥋")
 
@@ -18,15 +19,21 @@ def fetch_name_and_country(url):
         soup = BeautifulSoup(r.content, 'html.parser')
 
         # Extract name
-        h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
+        h1 = soup.find('h1') or soup.find('h1', {'class': 'use-letter-spacing-hint my-4'})
         name = h1.get_text(strip=True) if h1 else "Name not found"
 
-        # Final fix: Find div where text is "COUNTRY" and then the next sibling with value
+        # Static text scan for country match
+        known_countries = [
+            "Thailand", "Philippines", "Japan", "China", "United States", "United Kingdom", "Brazil", "Russia",
+            "India", "Australia", "Singapore", "Malaysia", "Vietnam", "South Korea", "Indonesia", "Myanmar"
+        ]
+        all_text = soup.get_text(separator=' ').strip()
+
         country = "Not found"
-        for label in soup.find_all("div", string=lambda text: text and text.strip().upper() == "COUNTRY"):
-            value_div = label.find_next_sibling("div")
-            if value_div and value_div.get_text(strip=True):
-                country = value_div.get_text(strip=True)
+        for country_name in known_countries:
+            pattern = r"\b" + re.escape(country_name) + r"\b"
+            if re.search(pattern, all_text):
+                country = country_name
                 break
 
         return name, country
@@ -39,7 +46,7 @@ def fetch_name_only(url):
         r = requests.get(url, headers=headers, timeout=10)
         r.raise_for_status()
         soup = BeautifulSoup(r.content, 'html.parser')
-        h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
+        h1 = soup.find('h1') or soup.find('h1', {'class': 'use-letter-spacing-hint my-4'})
         return h1.get_text(strip=True) if h1 else "Name not found"
     except Exception as e:
         return f"Error: {e}"
