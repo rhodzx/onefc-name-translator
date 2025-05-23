@@ -17,17 +17,21 @@ def fetch_name_and_country(url):
         r.raise_for_status()
         soup = BeautifulSoup(r.content, 'html.parser')
 
+        # Extract name
         h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
         name = h1.get_text(strip=True) if h1 else "Name not found"
 
-        # Robust COUNTRY extraction
+        # Improved country extraction: look for any div/span containing a known country name
+        known_countries = [
+            "Thailand", "Philippines", "Japan", "China", "United States", "Brazil", "Russia", "India", "Australia",
+            "Singapore", "Malaysia", "Vietnam", "South Korea", "Indonesia", "Myanmar"
+        ]
         country = "Not found"
-        for tag in soup.find_all(["div", "p", "span"]):
-            if tag and tag.get_text(strip=True).strip().lower() == "country":
-                next_tag = tag.find_next_sibling()
-                if next_tag and next_tag.get_text(strip=True):
-                    country = next_tag.get_text(strip=True)
-                    break
+        for tag in soup.find_all(["div", "span", "p"]):
+            text = tag.get_text(strip=True)
+            if text in known_countries:
+                country = text
+                break
 
         return name, country
     except Exception as e:
