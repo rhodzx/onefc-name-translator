@@ -2,46 +2,39 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
 from urllib.parse import urlparse
+import pandas as pd
 
-st.set_page_config(page_title="ONE FC Country Extractor", page_icon="🌍")
+st.set_page_config(page_title="ONE Name Translator", page_icon="🥋")
 
-st.title("🌍 ONE FC Athlete Country Extractor")
-url = st.text_input("Paste the ONE FC athlete URL:", "https://www.onefc.com/athletes/jonathan-haggerty/")
+st.title("🥋 ONE Athlete Name Translator")
+url = st.text_input("Paste the ONE athlete URL:", "https://www.onefc.com/athletes/rodtang/")
 
-def extract_country(url):
+def fetch_name(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {'User-Agent': 'Mozilla/5.0'}
         r = requests.get(url, headers=headers, timeout=10)
         r.raise_for_status()
-        soup = BeautifulSoup(r.content, "html.parser")
-
-        # Extract name
-        h1 = soup.find("h1") or soup.find("h1", {"class": "use-letter-spacing-hint my-4"})
-        name = h1.get_text(strip=True) if h1 else "Name not found"
-
-        # Extract COUNTRY field only
-        label_div = soup.find("div", string=lambda text: text and text.strip().upper() == "COUNTRY")
-        if label_div:
-            value_div = label_div.find_next_sibling("div")
-            country = value_div.get_text(strip=True) if value_div else "Not found"
-        else:
-            country = "Not found"
-
-        return {"Name": name, "Country": country}
+        soup = BeautifulSoup(r.content, 'html.parser')
+        h1 = soup.find('h1', {'class': 'use-letter-spacing-hint my-4'}) or soup.find('h1')
+        return h1.get_text(strip=True) if h1 else "Name not found"
     except Exception as e:
-        return {"Error": str(e)}
+        return f"Error: {e}"
 
 if "/athletes/" in url:
-    with st.spinner("Extracting..."):
-        result = extract_country(url)
+    parsed = urlparse(url)
+    slug = parsed.path.strip('/').split('/')[-1]
+    langs = {
+        "English": f"https://www.onefc.com/athletes/{slug}/",
+        "Thai": f"https://www.onefc.com/th/athletes/{slug}/",
+        "Japanese": f"https://www.onefc.com/jp/athletes/{slug}/",
+        "Chinese": f"https://www.onefc.com/cn/athletes/{slug}/"
+    }
 
-    if "Error" in result:
-        st.error(result["Error"])
-    else:
-        df = pd.DataFrame(result.items(), columns=["Field", "Value"])
-        st.dataframe(df)
+    with st.spinner("Fetching names..."):
+        results = {lang: fetch_name(link) for lang, link in langs.items()}
+    df = pd.DataFrame(results.items(), columns=["Language", "Name"])
+    st.dataframe(df)
 
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Download CSV", data=csv, file_name="onefc_country.csv", mime="text/csv")
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names.csv", mime="text/csv")
