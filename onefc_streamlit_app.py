@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import pandas as pd
 import difflib
+import re
 
 st.set_page_config(page_title="ONE FC Name + Auto Country", page_icon="🌍")
 st.title("🌍 ONE Athlete Name Translator + Auto Country")
@@ -23,7 +24,7 @@ def fetch_directory():
         name = card.select_one("div.athlete-card__name")
         country = card.select_one("div.athlete-card__country")
         if name and country:
-            directory[name.get_text(strip=True)] = country.get_text(strip=True)
+            directory[normalize(name.get_text(strip=True))] = country.get_text(strip=True)
     return directory
 
 def fetch_name(url):
@@ -37,8 +38,17 @@ def fetch_name(url):
     except Exception as e:
         return f"Error: {e}"
 
+def normalize(text):
+    # Remove smart quotes and nicknames, lowercase, strip multiple spaces
+    text = text.lower()
+    text = re.sub(r'[“”"]', '', text)  # remove all types of quotes
+    text = re.sub(r'“[^”]+”', '', text)  # remove nicknames inside quotes
+    text = re.sub(r'\s+', ' ', text)  # normalize whitespace
+    return text.strip()
+
 def fuzzy_lookup(name, directory):
-    matches = difflib.get_close_matches(name, directory.keys(), n=1, cutoff=0.6)
+    normalized_name = normalize(name)
+    matches = difflib.get_close_matches(normalized_name, directory.keys(), n=1, cutoff=0.6)
     return directory[matches[0]] if matches else "Not found"
 
 if "/athletes/" in url:
@@ -69,4 +79,4 @@ if "/athletes/" in url:
     st.dataframe(df)
 
     csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country_fuzzy.csv", mime="text/csv")
+    st.download_button("📥 Download CSV", data=csv, file_name="onefc_names_country_cleaned.csv", mime="text/csv")
